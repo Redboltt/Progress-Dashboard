@@ -1726,7 +1726,7 @@ function submitFitness() {
     .map(ex => ({
       name: ex.name.trim(),
       sets: ex.sets
-        .filter(s => s.reps !== '' || s.weight !== '')
+        .filter(s => s.reps !== '' || s.weight !== '' || +s.kg > 0)
         .map(s => ({ reps: +s.reps || 0, kg: +s.kg || 0, weight: s.weight || '' }))
     }))
     .filter(ex => ex.sets.length);
@@ -1998,7 +1998,18 @@ function renderCards() {
   // Workouts — count against current phase's month (starts July 1, 2026)
   const todayStr = today();
   const tl = DB.phaseTimelines?.[DB.phase] || {};
-  const phaseMonthStr = tl.month ? new Date(tl.month + ' 1').toISOString().slice(0, 7) : todayStr.slice(0, 7);
+  const phaseMonthStr = (() => {
+    if (!tl.month) return todayStr.slice(0, 7);
+    const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const parts = tl.month.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const mi = months.findIndex(m => parts[0].toLowerCase().startsWith(m));
+      const yr = parseInt(parts[parts.length - 1]);
+      if (mi >= 0 && yr > 2000) return `${yr}-${String(mi + 1).padStart(2, '0')}`;
+    }
+    try { const d = new Date(tl.month + ' 1'); if (!isNaN(d)) return d.toISOString().slice(0, 7); } catch {}
+    return todayStr.slice(0, 7);
+  })();
   const monSessions = DB.fitnessLog.filter(s => s.date && s.date.startsWith(phaseMonthStr)).length;
   const monTarget = pg.sessionsTarget || 16;
   const sPct = Math.min(100, (monSessions / monTarget) * 100);
