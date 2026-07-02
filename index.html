@@ -370,6 +370,7 @@ main{max-width:1280px;margin:0 auto;padding:24px 20px;display:flex;flex-directio
   <button class="nav-btn" onclick="showView('phases')">Goals</button>
   <button class="nav-btn" onclick="showView('setup')">Plan</button>
   <button class="nav-btn" onclick="showView('settings')">Setup</button>
+  <button class="nav-btn" onclick="showView('notes')">Notes</button>
   <span class="nav-spacer"></span>
   <button class="nav-action" onclick="openModal('add-entry')">+ Add Entry</button>
 </nav>
@@ -636,7 +637,7 @@ main{max-width:1280px;margin:0 auto;padding:24px 20px;display:flex;flex-directio
 
     <div class="settings-card">
       <h3>Workout Templates</h3>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Build a routine once (e.g. "Push 1", "Pull 1") with its exercises and target sets/reps. When logging a workout, pick the template to pre-fill the exercise list — just fill in the weights.</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Build a routine once (e.g. "Push 1", "Pull 1") with its exercises and target sets/reps. When logging a workout, pick the template to pre-fill the exercise list — just fill in the resistance.</p>
       <div id="wt-templates-list"></div>
       <button class="save-btn" style="margin-top:12px" onclick="openTemplateModal(null)">+ New Template</button>
     </div>
@@ -649,6 +650,20 @@ main{max-width:1280px;margin:0 auto;padding:24px 20px;display:flex;flex-directio
 
   </div>
 </div><!-- /view-settings -->
+
+<!-- ═══════════════════════════════════════════════════════ NOTES VIEW -->
+<div class="view" id="view-notes">
+  <div style="max-width:800px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div class="section-title">Notes</div>
+        <div style="font-size:13px;color:var(--text2)">Jot down ideas, plans, thoughts — anything you want to remember.</div>
+      </div>
+      <span id="notes-saved-indicator" style="font-size:11px;color:var(--text3);transition:.3s"></span>
+    </div>
+    <textarea id="notes-textarea" placeholder="Start writing..." oninput="onNotesInput()" style="width:100%;min-height:520px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;line-height:1.7;padding:18px;resize:vertical;outline:none;transition:border-color .15s" onfocus="this.style.borderColor='var(--border2)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+  </div>
+</div><!-- /view-notes -->
 
 <!-- ═══════════════════════════════════════════════════════ PHASES VIEW -->
 <div class="view" id="view-phases">
@@ -1069,17 +1084,18 @@ const DEFAULT = {
   fitnessLog: [],
   workoutTemplates: [
     { id:'wt_push1', name:'Push 1', exercises:[
-      { name:'Bench press',     sets:3, reps:8,  weight:0 },
-      { name:'Overhead press',  sets:3, reps:8,  weight:0 },
-      { name:'Tricep pushdown', sets:3, reps:12, weight:0 },
+      { name:'Bench press',     sets:3, reps:8,  weight:'' },
+      { name:'Overhead press',  sets:3, reps:8,  weight:'' },
+      { name:'Tricep pushdown', sets:3, reps:12, weight:'' },
     ]},
     { id:'wt_pull1', name:'Pull 1', exercises:[
-      { name:'Deadlift',     sets:3, reps:5,  weight:0 },
-      { name:'Lat pulldown', sets:3, reps:10, weight:0 },
-      { name:'Bicep curl',   sets:3, reps:12, weight:0 },
+      { name:'Deadlift',     sets:3, reps:5,  weight:'' },
+      { name:'Lat pulldown', sets:3, reps:10, weight:'' },
+      { name:'Bicep curl',   sets:3, reps:12, weight:'' },
     ]},
   ],
   workoutPlan: {},
+  notes: '',
   incomeLog: [],
   readingList: [
     {title:'Atomic Habits',author:'James Clear',subject:'Habits',status:'Reading',rating:null,takeaway:''},
@@ -1388,6 +1404,7 @@ function runMigrations() {
   if (!DB.goals.car.autoPayment) DB.goals.car.autoPayment = { enabled: false, amount: 250, nextDate: '', intervalDays: 14 };
   if (!DB.workoutTemplates) DB.workoutTemplates = JSON.parse(JSON.stringify(DEFAULT.workoutTemplates));
   if (!DB.workoutPlan) DB.workoutPlan = {};
+  if (DB.notes === undefined) DB.notes = '';
   if (!DB.phaseChecks)    DB.phaseChecks = {};
   if (!DB.phaseGoals)     DB.phaseGoals  = {};
   if (!DB.categoryChips)  DB.categoryChips = JSON.parse(JSON.stringify(DEFAULT_CAT_CHIPS));
@@ -1499,6 +1516,7 @@ function showView(name) {
   if (name === 'settings') renderSettings();
   if (name === 'phases') renderPhasesView();
   if (name === 'setup') renderSetupView();
+  if (name === 'notes') renderNotes();
 }
 
 function showTab(name) {
@@ -1612,8 +1630,8 @@ function renderFitExercises() {
         <span style="font-size:11px;color:var(--text3);width:38px">Set ${si+1}</span>
         <input type="number" min="0" placeholder="reps" value="${s.reps||''}" style="width:60px;padding:4px 6px;font-size:12px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text1);font-family:inherit" oninput="updateFitSet(${ei},${si},'reps',this.value)">
         <span style="font-size:11px;color:var(--text3)">reps ×</span>
-        <input type="number" min="0" step="0.5" placeholder="kg" value="${s.weight||''}" style="width:60px;padding:4px 6px;font-size:12px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text1);font-family:inherit" oninput="updateFitSet(${ei},${si},'weight',this.value)">
-        <span style="font-size:11px;color:var(--text3)">kg</span>
+        <input type="text" placeholder="resistance" value="${s.weight||''}" style="width:80px;padding:4px 6px;font-size:12px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text1);font-family:inherit" oninput="updateFitSet(${ei},${si},'weight',this.value)">
+        <span style="font-size:11px;color:var(--text3)">resist.</span>
         <button onclick="removeFitSet(${ei},${si})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;font-family:inherit">✕</button>
       </div>`).join('');
     return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:8px">
@@ -1635,12 +1653,12 @@ function saveCurrentAsTemplate() {
   if (!name || !name.trim()) return;
   const exercises = named.map(ex => {
     const repsVals = ex.sets.map(s => +s.reps || 0).filter(Boolean);
-    const weightVals = ex.sets.map(s => +s.weight || 0).filter(Boolean);
+    const lastResist = ex.sets.map(s => s.weight || '').filter(Boolean).pop() || '';
     return {
       name: ex.name.trim(),
       sets: ex.sets.length,
       reps: repsVals.length ? repsVals[repsVals.length-1] : 8,
-      weight: weightVals.length ? weightVals[weightVals.length-1] : 0,
+      weight: lastResist,
     };
   });
   DB.workoutTemplates.push({ id: 'wt_'+Date.now(), name: name.trim(), exercises });
@@ -1697,7 +1715,7 @@ function submitFitness() {
       name: ex.name.trim(),
       sets: ex.sets
         .filter(s => s.reps !== '' || s.weight !== '')
-        .map(s => ({ reps: +s.reps || 0, weight: +s.weight || 0 }))
+        .map(s => ({ reps: +s.reps || 0, weight: s.weight || '' }))
     }))
     .filter(ex => ex.sets.length);
   const run = distance > 0 ? { distance, pace: fmtPace(dur, distance) } : null;
@@ -2153,7 +2171,7 @@ function fitExerciseSummary(exercises) {
   if (!Array.isArray(exercises) || !exercises.length) return '<span style="color:var(--text3)">—</span>';
   return exercises.map(ex => {
     const sets = Array.isArray(ex?.sets) ? ex.sets : [];
-    const setsText = sets.map(s => `${s?.reps||0}${s?.weight ? '×'+s.weight+'kg' : ''}`).join(', ');
+    const setsText = sets.map(s => `${s?.reps||0}${s?.weight ? ' @ '+s.weight : ''}`).join(', ');
     return `<div><strong>${escHtml(ex?.name||'')}</strong> <span style="color:var(--text3);font-size:11px">${setsText}</span></div>`;
   }).join('');
 }
@@ -2422,6 +2440,22 @@ function deleteEntry(key, idx) {
 }
 
 // ═══════════════════════════════════════════════════ SETTINGS
+let _notesSaveTimer = null;
+function renderNotes() {
+  const ta = document.getElementById('notes-textarea');
+  if (ta) ta.value = DB.notes || '';
+}
+function onNotesInput() {
+  clearTimeout(_notesSaveTimer);
+  const ind = document.getElementById('notes-saved-indicator');
+  if (ind) ind.textContent = 'Saving…';
+  _notesSaveTimer = setTimeout(() => {
+    DB.notes = document.getElementById('notes-textarea').value;
+    save(DB);
+    if (ind) { ind.textContent = 'Saved ✓'; setTimeout(() => { ind.textContent = ''; }, 2000); }
+  }, 600);
+}
+
 function renderSettings() {
   const g = DB.goals;
   document.getElementById('s-weight-start').value = g.weight.start;
@@ -2464,7 +2498,7 @@ function renderWorkoutTemplates() {
     return;
   }
   list.innerHTML = DB.workoutTemplates.map(t => {
-    const exSummary = t.exercises.map(ex => `${escHtml(ex.name)} ${ex.sets}×${ex.reps}${ex.weight ? '@'+ex.weight+'kg' : ''}`).join(' · ');
+    const exSummary = t.exercises.map(ex => `${escHtml(ex.name)} ${ex.sets}×${ex.reps}${ex.weight ? ' @ '+ex.weight : ''}`).join(' · ');
     return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border)">
       <div style="flex:1;min-width:0">
         <div style="font-size:14px;font-weight:600">${escHtml(t.name)}</div>
@@ -2504,18 +2538,18 @@ function renderTemplateExercises() {
       <input type="number" min="1" value="${ex.sets||3}" placeholder="sets" style="width:54px;padding:5px 6px;font-size:12px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text1);font-family:inherit" oninput="updateTemplateExercise(${i},'sets',this.value)">
       <span style="font-size:11px;color:var(--text3)">×</span>
       <input type="number" min="1" value="${ex.reps||8}" placeholder="reps" style="width:54px;padding:5px 6px;font-size:12px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text1);font-family:inherit" oninput="updateTemplateExercise(${i},'reps',this.value)">
-      <input type="number" min="0" step="0.5" value="${ex.weight||''}" placeholder="kg" style="width:60px;padding:5px 6px;font-size:12px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text1);font-family:inherit" oninput="updateTemplateExercise(${i},'weight',this.value)">
+      <input type="text" value="${escHtml(ex.weight||'')}" placeholder="resistance" style="width:80px;padding:5px 6px;font-size:12px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text1);font-family:inherit" oninput="updateTemplateExercise(${i},'weight',this.value)">
       <button onclick="removeTemplateExercise(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;font-family:inherit">✕</button>
     </div>`).join('');
 }
 
 function addTemplateExercise() {
-  _templateExercises.push({ name:'', sets:3, reps:8, weight:0 });
+  _templateExercises.push({ name:'', sets:3, reps:8, weight:'' });
   renderTemplateExercises();
 }
 function removeTemplateExercise(i) { _templateExercises.splice(i,1); renderTemplateExercises(); }
 function updateTemplateExercise(i, field, val) {
-  _templateExercises[i][field] = (field === 'name') ? val : (+val || 0);
+  _templateExercises[i][field] = (field === 'sets' || field === 'reps') ? (+val || 0) : val;
 }
 
 function saveTemplate() {
@@ -2523,7 +2557,7 @@ function saveTemplate() {
   if (!name) return alert('Give the template a name.');
   const exercises = _templateExercises
     .filter(ex => ex.name && ex.name.trim())
-    .map(ex => ({ name: ex.name.trim(), sets: ex.sets || 3, reps: ex.reps || 8, weight: ex.weight || 0 }));
+    .map(ex => ({ name: ex.name.trim(), sets: ex.sets || 3, reps: ex.reps || 8, weight: ex.weight || '' }));
   if (_editingTemplateId) {
     const tpl = DB.workoutTemplates.find(t => t.id === _editingTemplateId);
     if (tpl) { tpl.name = name; tpl.exercises = exercises; }
